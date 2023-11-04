@@ -25,7 +25,6 @@ selected_log_files = st.multiselect("Select log files", log_files)
 columns = ['Timestamp', 'Log Level', 'Message']
 dfs = []
 placeholders = []
-barchart_placeholders = []
 
 def update_dataframe(log_entry, index):
     # Parse the log entry and update the DataFrame accordingly
@@ -46,7 +45,7 @@ def show_dataframe(index):
     # Set 'Timestamp' as the index in a copy of the DataFrame
     df_copy = dfs[index].set_index('Timestamp').copy()
     with placeholders[index].container():
-        st.write(log_files[index])
+        st.markdown(f"**File:** *{log_files[index]}*")
         st.dataframe(df_copy)
 
 def run_thread(index, log_file, stop_event):
@@ -61,7 +60,8 @@ def run_thread(index, log_file, stop_event):
                 else:
                     for line in lines:
                         update_dataframe(line, index)
-                    tasks.put(index)
+                    if index not in tasks.queue:
+                        tasks.put(index)
     except KeyboardInterrupt:
         pass
 

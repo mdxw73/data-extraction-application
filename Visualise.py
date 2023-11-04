@@ -26,7 +26,6 @@ selected_chart = st.radio("Select a chart:", ["bar", "line"])
 columns = ['Timestamp', 'Log Level', 'Message']
 dfs = []
 placeholders = []
-barchart_placeholders = []
 
 def update_dataframe(log_entry, index):
     # Parse the log entry and update the DataFrame accordingly
@@ -65,7 +64,7 @@ def plot_barchart(index):
         raise ValueError("DataFrame does not contain a 'Log Level' column.")
     log_level_frequencies = df['Log Level'].value_counts()
     with placeholders[index].container():
-        st.write(log_files[index])
+        st.markdown(f"**File:** *{log_files[index]}*")
         st.bar_chart(log_level_frequencies)
 
 def run_thread(index, log_file, stop_event):
@@ -80,7 +79,8 @@ def run_thread(index, log_file, stop_event):
                 else:
                     for line in lines:
                         update_dataframe(line, index)
-                    tasks.put(index)
+                    if index not in tasks.queue:
+                        tasks.put(index)
     except KeyboardInterrupt:
         pass
 
