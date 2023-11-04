@@ -1,9 +1,7 @@
 import pandas as pd
 import subprocess
-import sys
 import streamlit as st
 import time
-
 import os
 from glob import glob
 from datetime import datetime
@@ -37,7 +35,7 @@ def update_log_file():
 
 def update_dataframe(log_entry):
     # Parse the log entry and update the DataFrame accordingly
-    pattern = re.compile(r'(?P<timestamp>\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}.\d{9}) (?P<log_level>\w+): (?P<message>.+)')
+    pattern = re.compile(r'(?P<timestamp>\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}.\d{7}|\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}.\d{9}) (?P<log_level>\w+): (?P<message>.+)')
     match = pattern.match(log_entry)
 
     if match:
@@ -74,6 +72,5 @@ if __name__ == "__main__":
                     for line in lines:
                         update_dataframe(line)
                     plot_graph()
-                print(len(df))
     except KeyboardInterrupt:
         pass
