@@ -24,6 +24,7 @@ st.dataframe(pd.DataFrame(log_files))
 columns = ['Timestamp', 'Log Level', 'Message']
 dfs = []
 placeholders = []
+barchart_placeholders = []
 
 def update_dataframe(log_entry, index):
     # Parse the log entry and update the DataFrame accordingly
@@ -51,6 +52,13 @@ def plot_graph(index):
     # Plot the graph
     placeholders[index].line_chart(plot_df.set_index('Timestamp'))
 
+def add_barchart(index):
+    df = dfs[index]
+    if 'Log Level' not in df.columns:
+        raise ValueError("DataFrame does not contain a 'Log Level' column.")
+    log_level_frequencies = df['Log Level'].value_counts()
+    barchart_placeholders[index].bar_chart(log_level_frequencies)
+
 def run_thread(index, log_file, stop_event):
     try:
         with open(log_file) as file:
@@ -74,6 +82,7 @@ def main():
     for index, log_file in enumerate(log_files):
         dfs.append(pd.DataFrame(columns=columns))
         placeholders.append(st.empty())
+        barchart_placeholders.append(st.empty())
         stop_event = threading.Event()
         stop_events.append(stop_event)
         thread = threading.Thread(target=run_thread, args=(index, log_file, stop_event,))
@@ -87,6 +96,7 @@ def main():
                 next_task = tasks.get()
                 print('Executing update {} on main thread'.format(next_task))
                 plot_graph(next_task)
+                add_barchart(next_task)
             else:
                 time.sleep(1)
     except KeyboardInterrupt:
@@ -108,3 +118,4 @@ if liveTrackButton.button("Live Track"):
         liveTrack = False
     liveTrack = True
     main()
+    
