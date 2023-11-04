@@ -16,7 +16,9 @@ tasks = Queue()
 
 log_directory = '.'  # Replace with your log directory
 log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log')) # Get a list of log files in the directory
-st.dataframe(pd.DataFrame(log_files))
+st.markdown(f"### Visualise Log Files")
+selected_log_files = st.multiselect("Select log files", log_files)
+selected_chart = st.radio("Select a chart:", ["bar", "line"])
 
 # most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
 # LOG_FILE_PATH = most_recent_log # Set the path to your log file
@@ -40,24 +42,31 @@ def update_dataframe(log_entry, index):
         dfs[index].loc[len(dfs[index])] = [timestamp, log_level, message]
 
 def plot_graph(index):
+    if selected_chart == "bar":
+        plot_barchart(index)
+    elif selected_chart == "line":
+        plot_linechart(index)
+
+def plot_linechart(index):
     # Ensure 'Timestamp' column is of type datetime
     dfs[index]['Timestamp'] = pd.to_datetime(dfs[index]['Timestamp'])
-
     # Set 'Timestamp' as the index in a copy of the DataFrame
     df_copy = dfs[index].set_index('Timestamp').copy()
-
     # Create a new DataFrame for plotting (resample data to get counts per minute)
     plot_df = df_copy.resample('1T').size().reset_index(name='Count')
-
     # Plot the graph
-    placeholders[index].line_chart(plot_df.set_index('Timestamp'))
+    with placeholders[index].container():
+        st.write(log_files[index])
+        st.line_chart(plot_df.set_index('Timestamp'))
 
-def add_barchart(index):
+def plot_barchart(index):
     df = dfs[index]
     if 'Log Level' not in df.columns:
         raise ValueError("DataFrame does not contain a 'Log Level' column.")
     log_level_frequencies = df['Log Level'].value_counts()
-    barchart_placeholders[index].bar_chart(log_level_frequencies)
+    with placeholders[index].container():
+        st.write(log_files[index])
+        st.bar_chart(log_level_frequencies)
 
 def run_thread(index, log_file, stop_event):
     try:
@@ -79,10 +88,9 @@ def main():
     # Create a separate thread for each log file
     threads = []
     stop_events = []
-    for index, log_file in enumerate(log_files):
+    for index, log_file in enumerate(selected_log_files):
         dfs.append(pd.DataFrame(columns=columns))
         placeholders.append(st.empty())
-        barchart_placeholders.append(st.empty())
         stop_event = threading.Event()
         stop_events.append(stop_event)
         thread = threading.Thread(target=run_thread, args=(index, log_file, stop_event,))
@@ -96,7 +104,6 @@ def main():
                 next_task = tasks.get()
                 print('Executing update {} on main thread'.format(next_task))
                 plot_graph(next_task)
-                add_barchart(next_task)
             else:
                 time.sleep(1)
     except KeyboardInterrupt:
@@ -113,9 +120,8 @@ def main():
 
 liveTrackButton = st.empty()
 
-if liveTrackButton.button("Live Track"):
+if liveTrackButton.button("Live Track", disabled=len(selected_log_files)==0):
     if liveTrackButton.button("Stop Live Track"):
         liveTrack = False
     liveTrack = True
     main()
-    
