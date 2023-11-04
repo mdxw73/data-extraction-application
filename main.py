@@ -11,6 +11,7 @@ import re
 import threading
 from queue import Queue
 
+liveTrack = False
 tasks = Queue()
 
 log_directory = '.'  # Replace with your log directory
@@ -50,10 +51,10 @@ def plot_graph(index):
     # Plot the graph
     placeholders[index].line_chart(plot_df.set_index('Timestamp'))
 
-def run_thread(index, log_file):
+def run_thread(index, log_file, stop_event):
     try:
         with open(log_file) as file:
-            while True:
+            while not stop_event.is_set():
                 where = file.tell()
                 lines = file.readlines()
                 if not lines:
@@ -69,27 +70,41 @@ def run_thread(index, log_file):
 def main():
     # Create a separate thread for each log file
     threads = []
+    stop_events = []
     for index, log_file in enumerate(log_files):
-        dfs.append(pd.DataFrame(columns=columns)) # Create an empty DataFrame with your desired column names
-        placeholders.append(st.empty()) # set graph placeholder
-        thread = threading.Thread(target=run_thread, args=(index, log_file,))
+        dfs.append(pd.DataFrame(columns=columns))
+        placeholders.append(st.empty())
+        stop_event = threading.Event()
+        stop_events.append(stop_event)
+        thread = threading.Thread(target=run_thread, args=(index, log_file, stop_event,))
         threads.append(thread)
         thread.start()
 
     try:
-        while True:
+        print("Live track started")
+        while liveTrack:
             if tasks.qsize() > 0:
                 next_task = tasks.get()
-                print('Executing function {} on main thread'.format(next_task))
+                print('Executing update {} on main thread'.format(next_task))
                 plot_graph(next_task)
             else:
                 time.sleep(1)
     except KeyboardInterrupt:
         pass
+    finally:
+        # Set stop events to stop the threads
+        for stop_event in stop_events:
+            stop_event.set()
 
-    # Wait for all threads to finish
-    for thread in threads:
-        thread.join()
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
+        print("Live track stopped")
 
-if st.button("Live Track"):
+liveTrackButton = st.empty()
+
+if liveTrackButton.button("Live Track"):
+    if liveTrackButton.button("Stop Live Track"):
+        liveTrack = False
+    liveTrack = True
     main()
