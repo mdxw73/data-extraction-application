@@ -1,3 +1,5 @@
+# MacOS executable setup: chmod +x qrt_data_extraction-MacOS
+
 import pandas as pd
 import subprocess
 import streamlit as st
@@ -64,7 +66,7 @@ def run_thread(index, log_file):
     except KeyboardInterrupt:
         pass
 
-if __name__ == "__main__":
+def main():
     # Create a separate thread for each log file
     threads = []
     for index, log_file in enumerate(log_files):
@@ -88,3 +90,6 @@ if __name__ == "__main__":
     # Wait for all threads to finish
     for thread in threads:
         thread.join()
+
+if st.button("Live Track"):
+    main()
