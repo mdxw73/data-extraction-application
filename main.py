@@ -6,34 +6,23 @@ import os
 from glob import glob
 from datetime import datetime
 import re
+import threading
+from queue import Queue
+
+tasks = Queue()
 
 log_directory = '.'  # Replace with your log directory
+log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log')) # Get a list of log files in the directory
+st.dataframe(pd.DataFrame(log_files))
 
-# Get a list of log files in the directory
-log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log'))
+# most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
+# LOG_FILE_PATH = most_recent_log # Set the path to your log file
 
-# Find the most recent log file based on the timestamp in the filename
-most_recent_log = max(log_files, key=os.path.getctime)
-
-# Set the path to your log file
-LOG_FILE_PATH = most_recent_log
-
-# Create an empty DataFrame with your desired column names
 columns = ['Timestamp', 'Log Level', 'Message']
-df = pd.DataFrame(columns=columns)
+dfs = []
+placeholders = []
 
-# set graph placeholder
-placeholder = st.empty()
-
-def update_log_file():
-    # Read the last 10 lines from the log file
-    output = subprocess.check_output(['tail', '-n', '10', LOG_FILE_PATH], universal_newlines=True)
-
-    # Update the DataFrame for each line
-    for log_entry in output.splitlines():
-        update_dataframe(log_entry)
-
-def update_dataframe(log_entry):
+def update_dataframe(log_entry, index):
     # Parse the log entry and update the DataFrame accordingly
     pattern = re.compile(r'(?P<timestamp>\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}.\d{7}|\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}.\d{9}) (?P<log_level>\w+): (?P<message>.+)')
     match = pattern.match(log_entry)
@@ -44,24 +33,24 @@ def update_dataframe(log_entry):
         message = match.group('message')
         
         # Update the DataFrame
-        df.loc[len(df)] = [timestamp, log_level, message]
+        dfs[index].loc[len(dfs[index])] = [timestamp, log_level, message]
 
-def plot_graph():
+def plot_graph(index):
     # Ensure 'Timestamp' column is of type datetime
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+    dfs[index]['Timestamp'] = pd.to_datetime(dfs[index]['Timestamp'])
 
     # Set 'Timestamp' as the index in a copy of the DataFrame
-    df_copy = df.set_index('Timestamp').copy()
+    df_copy = dfs[index].set_index('Timestamp').copy()
 
     # Create a new DataFrame for plotting (resample data to get counts per minute)
     plot_df = df_copy.resample('1T').size().reset_index(name='Count')
 
     # Plot the graph
-    placeholder.line_chart(plot_df.set_index('Timestamp'))
+    placeholders[index].line_chart(plot_df.set_index('Timestamp'))
 
-if __name__ == "__main__":
+def run_thread(index, log_file):
     try:
-        with open(LOG_FILE_PATH) as file:
+        with open(log_file) as file:
             while True:
                 where = file.tell()
                 lines = file.readlines()
@@ -70,7 +59,32 @@ if __name__ == "__main__":
                     file.seek(where)
                 else:
                     for line in lines:
-                        update_dataframe(line)
-                    plot_graph()
+                        update_dataframe(line, index)
+                    tasks.put(index)
     except KeyboardInterrupt:
         pass
+
+if __name__ == "__main__":
+    # Create a separate thread for each log file
+    threads = []
+    for index, log_file in enumerate(log_files):
+        dfs.append(pd.DataFrame(columns=columns)) # Create an empty DataFrame with your desired column names
+        placeholders.append(st.empty()) # set graph placeholder
+        thread = threading.Thread(target=run_thread, args=(index, log_file,))
+        threads.append(thread)
+        thread.start()
+
+    try:
+        while True:
+            if tasks.qsize() > 0:
+                next_task = tasks.get()
+                print('Executing function {} on main thread'.format(next_task))
+                plot_graph(next_task)
+            else:
+                time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
