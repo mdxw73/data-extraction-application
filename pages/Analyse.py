@@ -9,11 +9,12 @@ log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log
 
 st.markdown(f"### Visualise Log Files")
 selected_log_files = st.multiselect("Select log files", log_files)
-log_helper = LogHelper(selected_log_files)
+selected_filter = st.radio("Select a filter:", ["none", "numeric"])
+log_helper = LogHelper(selected_log_files, selected_filter=selected_filter)
 live_track_button = st.empty()
 
 if live_track_button.button("Live Track", disabled=len(selected_log_files)==0):
     if live_track_button.button("Stop Live Track"):
         log_helper.is_live = False
     log_helper.is_live = True
-    log_helper.live_track(log_helper.show_dataframe)
+    log_helper.live_track(log_helper.show_filtered_dataframe)
