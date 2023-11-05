@@ -10,15 +10,28 @@ log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log
 
 st.markdown(f"### Visualise Log Files")
 selected_log_files = st.multiselect("Select log files", log_files)
-selected_filter = st.radio("Select a filter:", ["none", "numeric", "datetime"])
-start_date, start_time, end_date, end_time = None, None, None, None
-if selected_filter == "datetime":
-    col1, col2, col3, col4 = st.columns(4)
-    start_date = col1.date_input("Select start date")
-    start_time = col2.time_input("Select start time", step=timedelta(minutes=1))
-    end_date = col3.date_input("Select end date")
-    end_time = col4.time_input("Select end time", step=timedelta(minutes=1))
-log_helper = LogHelper(selected_log_files, selected_filter=selected_filter, start_date=start_date, start_time=start_time, end_date=end_date, end_time=end_time)
+
+select_filter,select_highlighting = st.columns(2)
+
+with select_filter:
+    selected_filter = st.radio("Select a filter:", ["none", "numeric", "datetime", "custom regex"])
+    if selected_filter == "custom regex":
+        regex_pattern = st.text_input("Enter regex pattern:")
+    else:
+        regex_pattern = ""
+
+    start_date, start_time, end_date, end_time = None, None, None, None
+    if selected_filter == "datetime":
+        col1, col2, col3, col4 = st.columns(4)
+        start_date = col1.date_input("Select start date")
+        start_time = col2.time_input("Select start time", step=timedelta(minutes=1))
+        end_date = col3.date_input("Select end date")
+        end_time = col4.time_input("Select end time", step=timedelta(minutes=1))
+
+with select_highlighting:
+    selected_highlighting = st.radio("Highlight filtered expression?", ["yes","no"])
+
+log_helper = LogHelper(selected_log_files, selected_filter=selected_filter, start_date=start_date, start_time=start_time, end_date=end_date, end_time=end_time, selected_highlighting = selected_highlighting, regex_pattern = regex_pattern)
 live_track_button = st.empty()
 
 if live_track_button.button("Live Track", disabled=len(selected_log_files)==0):

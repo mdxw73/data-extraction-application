@@ -10,7 +10,8 @@ from queue import Queue
 
 
 class LogHelper:
-    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None):
+    #def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None):
+    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None, selected_highlighting = "no", regex_pattern = "movie"):
         self.is_live = False
         self.tasks = Queue()
         # most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
@@ -25,6 +26,10 @@ class LogHelper:
         self.end_date = end_date
         self.end_time = end_time
 
+        self.selected_highlighting = selected_highlighting
+        self.regex_pattern =  r'{}'.format(regex_pattern)
+        #could add string formatting so they could just search the term and not the regex search
+
         self.columns = ['Timestamp', 'Log Level', 'Message']
         self.dfs = []
         self.placeholders = []
@@ -35,7 +40,7 @@ class LogHelper:
         elif self.selected_chart == "line":
             self.plot_linechart(index)
         else:
-            raise(Exception("Unkown graph"))
+            raise(Exception("Unknown graph"))
 
     def plot_linechart(self, index):
         # Ensure 'Timestamp' column is of type datetime
@@ -67,33 +72,33 @@ class LogHelper:
             st.markdown(f"**File:** *{self.selected_log_files[index]}*")
             st.dataframe(df_copy)
 
-    def contains_numeric_data(self, text):
-        # Regular expression pattern to match numeric digits or common number words
-        pattern = r'\d+|zero|one|two|three|four|five|six|seven|eight|nine'
-        # Find all matches in the text
-        matches = re.findall(pattern, text)
-        # Return True if any matches are found, indicating the presence of numeric data
+    def contains_custom_regex(self,text):
+        matches = re.findall(self.regex_pattern, text)
         return bool(matches)
 
-    def filter_df_numeric(self, original_df):
-        original_df['ContainsNumericData'] = original_df['Message'].apply(self.contains_numeric_data)
-        # Filter rows where 'Message' contains numeric data
-        filtered_df = original_df[original_df['ContainsNumericData']]
+    def filter_df_custom(self, original_df):
+        original_df['ContainsCustomRegex'] = original_df['Message'].apply(self.contains_custom_regex)
+        filtered_df = original_df[original_df['ContainsCustomRegex']]
         filtered_df = filtered_df[["Timestamp", "Log Level", "Message"]]
         return filtered_df
+
+    def show_custom_filtered_dataframe(self, index):
+        filtered_df = self.filter_df_custom(self.dfs[index].copy())
+
+        if self.selected_highlighting == "yes":
+            for rowindex, row in filtered_df.iterrows():
+                filtered_df.at[rowindex, 'Message'] = self.highlight_text_with_regex(row['Message'], self.regex_pattern)
+            with self.placeholders[index].container():
+                st.markdown(f"**File:** *{self.selected_log_files[index]}*")
+                st.write(filtered_df.to_html(escape=False), unsafe_allow_html=True)
+        else:
+            with self.placeholders[index].container():
+                st.markdown(f"**File:** *{self.selected_log_files[index]}*")
+                st.dataframe(filtered_df)
 
     def highlight_text_with_regex(self, text, pattern):
         highlighted_text = re.sub(pattern, lambda x: f"<span style='background-color: yellow'>{x.group()}</span>", text)
         return highlighted_text
-
-    def show_numeric_filtered_dataframe(self, index):
-        pattern = r'\d+|zero|one|two|three|four|five|six|seven|eight|nine'
-        filtered_df = self.filter_df_numeric(self.dfs[index].copy())
-        for rowindex, row in filtered_df.iterrows():
-            filtered_df.at[rowindex, 'Message'] = self.highlight_text_with_regex(row['Message'], pattern)
-        with self.placeholders[index].container():
-            st.markdown(f"**File:** *{self.selected_log_files[index]}*")
-            st.write(filtered_df.to_html(escape=False), unsafe_allow_html=True)
 
     def show_datetime_filtered_dataframe(self, index):
         # Ensure 'Timestamp' column is of type datetime
@@ -119,11 +124,14 @@ class LogHelper:
         if self.selected_filter == "none":
             self.show_dataframe(index)
         elif self.selected_filter == "numeric":
-            self.show_numeric_filtered_dataframe(index)
+            self.regex_pattern = r'\d+|zero|one|two|three|four|five|six|seven|eight|nine'
+            self.show_custom_filtered_dataframe(index)
         elif self.selected_filter == "datetime":
             self.show_datetime_filtered_dataframe(index)
+        elif self.selected_filter == "custom regex":
+            self.show_custom_filtered_dataframe(index)
         else:
-            raise(Exception("Unkown filter"))
+            raise(Exception("Unknown filter"))
         
     def update_dataframe(self, log_entry, index):
         # Parse the log entry and update the DataFrame accordingly
