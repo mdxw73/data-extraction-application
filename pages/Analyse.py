@@ -11,13 +11,16 @@ log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log
 st.subheader("Analyse Log Files")
 selected_log_files = st.multiselect("Select log files", log_files)
 
+regex_pattern = ""
+log_level = "DEBUG"
 filters_col1, filters_col2 = st.columns(2)
 with filters_col1:
-    selected_filter = st.radio("Select a filter:", ["none", "numeric", "datetime", "custom regex"])
+    selected_filter = st.radio("Select a filter:", ["none", "numeric", "datetime", "custom regex", "log level"])
     if selected_filter == "custom regex":
         regex_pattern = st.text_input("Enter regex pattern:")
-    else:
-        regex_pattern = ""
+    elif selected_filter == "log level":
+        log_level = st.radio("Select a log level:", ["DEBUG", "WARN", "CRIT", "ERROR", "INFO", "OTHER"])
+
 with filters_col2:
     selected_highlighting = st.radio("Highlight filtered expression?", ["no", "yes"])
 
@@ -29,7 +32,7 @@ if selected_filter == "datetime":
     end_date = col3.date_input("Select end date")
     end_time = col4.time_input("Select end time", step=timedelta(minutes=1))
 
-log_helper = LogHelper(selected_log_files, selected_filter=selected_filter, start_date=start_date, start_time=start_time, end_date=end_date, end_time=end_time, selected_highlighting=selected_highlighting, regex_pattern=regex_pattern)
+log_helper = LogHelper(selected_log_files, selected_filter=selected_filter, start_date=start_date, start_time=start_time, end_date=end_date, end_time=end_time, selected_highlighting=selected_highlighting, regex_pattern=regex_pattern, log_level=log_level)
 live_track_button = st.empty()
 
 if live_track_button.button("Live Track", disabled=len(selected_log_files)==0):

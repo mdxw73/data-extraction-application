@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from datetime import timedelta
 
 class LogHelper:
-    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None, selected_highlighting = "no", regex_pattern = ""):
+    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None, selected_highlighting = "no", regex_pattern = "", log_level="DEBUG"):
         self.is_live = False
         self.tasks = Queue()
         # most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
@@ -20,6 +20,7 @@ class LogHelper:
         self.selected_log_files = selected_log_files
         self.selected_chart = selected_chart
         self.selected_filter = selected_filter
+        self.log_level = log_level
         
         self.start_date = start_date
         self.start_time = start_time
@@ -100,18 +101,21 @@ class LogHelper:
         return filtered_df
 
     def show_custom_filtered_dataframe(self, index):
-        filtered_df = self.filter_df_custom(self.dfs[index].copy())
+        if self.selected_filter == "log level":
+            filtered_df = self.dfs[index][self.dfs[index]['Log Level'] == self.log_level].copy()
+        else:
+            filtered_df = self.filter_df_custom(self.dfs[index].copy())
         
         if self.selected_highlighting == "yes":
             for rowindex, row in filtered_df.iterrows():
                 filtered_df.at[rowindex, 'Message'] = self.highlight_text_with_beautiful_soup(row['Message'])
             with self.placeholders[index].container():
                 st.markdown(f"**File:** *{self.selected_log_files[index]}*")
-                st.write(filtered_df.to_html(escape=False), unsafe_allow_html=True)
+                st.write(filtered_df.to_html(index=False, escape=False), unsafe_allow_html=True)
         else:
             with self.placeholders[index].container():
                 st.markdown(f"**File:** *{self.selected_log_files[index]}*")
-                st.dataframe(filtered_df)
+                st.dataframe(filtered_df.set_index('Timestamp'))
 
     def highlight_text_with_beautiful_soup(self, text):
         soup = BeautifulSoup(text, 'html.parser')
@@ -159,7 +163,7 @@ class LogHelper:
             self.show_custom_filtered_dataframe(index)
         elif self.selected_filter == "datetime":
             self.show_datetime_filtered_dataframe(index)
-        elif self.selected_filter == "custom regex":
+        elif self.selected_filter == "custom regex" or self.selected_filter == "log level":
             self.show_custom_filtered_dataframe(index)
         else:
             raise(Exception("Unknown filter"))
