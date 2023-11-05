@@ -7,10 +7,10 @@ import time
 import re
 import threading
 from queue import Queue
-
+from bs4 import BeautifulSoup
 
 class LogHelper:
-    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None, selected_highlighting = "no", regex_pattern = "movie"):
+    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None, selected_highlighting = "no", regex_pattern = ""):
         self.is_live = False
         self.tasks = Queue()
         # most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
@@ -26,7 +26,7 @@ class LogHelper:
         self.end_time = end_time
 
         self.selected_highlighting = selected_highlighting
-        self.regex_pattern =  r'{}'.format(regex_pattern)
+        self.regex_pattern = regex_pattern
         
         self.columns = ['Timestamp', 'Log Level', 'Message']
         self.dfs = []
@@ -84,7 +84,7 @@ class LogHelper:
             st.markdown(f"**File:** *{self.selected_log_files[index]}*")
             st.dataframe(df_copy)
 
-    def contains_custom_regex(self,text):
+    def contains_custom_regex(self, text):
         matches = re.findall(self.regex_pattern, text)
         return bool(matches)
 
@@ -96,10 +96,10 @@ class LogHelper:
 
     def show_custom_filtered_dataframe(self, index):
         filtered_df = self.filter_df_custom(self.dfs[index].copy())
-
+        
         if self.selected_highlighting == "yes":
             for rowindex, row in filtered_df.iterrows():
-                filtered_df.at[rowindex, 'Message'] = self.highlight_text_with_regex(row['Message'], self.regex_pattern)
+                filtered_df.at[rowindex, 'Message'] = self.highlight_text_with_beautiful_soup(row['Message'])
             with self.placeholders[index].container():
                 st.markdown(f"**File:** *{self.selected_log_files[index]}*")
                 st.write(filtered_df.to_html(escape=False), unsafe_allow_html=True)
@@ -108,9 +108,16 @@ class LogHelper:
                 st.markdown(f"**File:** *{self.selected_log_files[index]}*")
                 st.dataframe(filtered_df)
 
-    def highlight_text_with_regex(self, text, pattern):
-        highlighted_text = re.sub(pattern, lambda x: f"<span style='background-color: yellow'>{x.group()}</span>", text)
-        return highlighted_text
+    def highlight_text_with_beautiful_soup(self, text):
+        soup = BeautifulSoup(text, 'html.parser')
+        
+        def highlight_match(match):
+            return f"<span style='background-color: yellow'>{match.group()}</span>"
+        
+        for text_node in soup.find_all(text=True):
+            text_node.replace_with(re.sub(self.regex_pattern, highlight_match, str(text_node)))
+        
+        return soup
 
     def show_datetime_filtered_dataframe(self, index):
         # Ensure 'Timestamp' column is of type datetime

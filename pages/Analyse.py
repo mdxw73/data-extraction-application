@@ -29,7 +29,7 @@ if selected_filter == "datetime":
     end_date = col3.date_input("Select end date")
     end_time = col4.time_input("Select end time", step=timedelta(minutes=1))
 
-log_helper = LogHelper(selected_log_files, selected_filter=selected_filter, start_date=start_date, start_time=start_time, end_date=end_date, end_time=end_time, selected_highlighting = selected_highlighting, regex_pattern = regex_pattern)
+log_helper = LogHelper(selected_log_files, selected_filter=selected_filter, start_date=start_date, start_time=start_time, end_date=end_date, end_time=end_time, selected_highlighting=selected_highlighting, regex_pattern=regex_pattern)
 live_track_button = st.empty()
 
 if live_track_button.button("Live Track", disabled=len(selected_log_files)==0):
