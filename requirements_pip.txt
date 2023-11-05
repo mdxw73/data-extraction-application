@@ -1,4 +1,4 @@
-# created by: pip freeze > requirements.txt
+# created by: pip freeze > requirements_pip.txt
 
 altair @ file:///home/conda/feedstock_root/build_artifacts/altair_1696364485230/work
 appnope @ file:///home/conda/feedstock_root/build_artifacts/appnope_1649077682618/work

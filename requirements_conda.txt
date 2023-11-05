@@ -1,4 +1,4 @@
-# created by: conda list -e > requirements-conda.txt
+# created by: conda list -e > requirements_conda.txt
 
 # This file may be used to create an environment using:
 # $ conda create --name <env> --file <this file>
