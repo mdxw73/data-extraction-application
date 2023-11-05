@@ -104,10 +104,7 @@ class LogHelper:
         return filtered_df
 
     def show_custom_filtered_dataframe(self, index):
-        if self.selected_filter == "log level":
-            filtered_df = self.dfs[index][self.dfs[index]['Log Level'] == self.log_level].copy()
-        else:
-            filtered_df = self.filter_df_custom(self.dfs[index].copy())
+        filtered_df = self.filter_df_custom(self.dfs[index].copy())
         
         if self.selected_highlighting == "yes":
             for rowindex, row in filtered_df.iterrows():
@@ -158,6 +155,12 @@ class LogHelper:
                 st.write("Latency statistics:")
                 st.write(latency.describe())
 
+    def show_log_level_filtered_dataframe(self, index):
+        filtered_df = self.dfs[index][self.dfs[index]['Log Level'] == self.log_level].copy()
+        with self.placeholders[index].container():
+            st.markdown(f"**File:** *{self.selected_log_files[index]}*")
+            st.dataframe(filtered_df.set_index('Timestamp'))
+
     def show_filtered_dataframe(self, index):
         if self.selected_filter == "none":
             self.show_dataframe(index)
@@ -166,8 +169,10 @@ class LogHelper:
             self.show_custom_filtered_dataframe(index)
         elif self.selected_filter == "datetime":
             self.show_datetime_filtered_dataframe(index)
-        elif self.selected_filter == "custom regex" or self.selected_filter == "log level":
+        elif self.selected_filter == "custom regex":
             self.show_custom_filtered_dataframe(index)
+        elif self.selected_filter == "log level":
+            self.show_log_level_filtered_dataframe(index)
         else:
             raise(Exception("Unknown filter"))
         
