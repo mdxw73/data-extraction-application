@@ -4,14 +4,13 @@ import pandas as pd
 import subprocess
 import streamlit as st
 import time
-from datetime import datetime
 import re
 import threading
 from queue import Queue
 
 
 class LogHelper:
-    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none"):
+    def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None):
         self.is_live = False
         self.tasks = Queue()
         # most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
@@ -20,6 +19,11 @@ class LogHelper:
         self.selected_log_files = selected_log_files
         self.selected_chart = selected_chart
         self.selected_filter = selected_filter
+        
+        self.start_date = start_date
+        self.start_time = start_time
+        self.end_date = end_date
+        self.end_time = end_time
 
         self.columns = ['Timestamp', 'Log Level', 'Message']
         self.dfs = []
@@ -30,6 +34,8 @@ class LogHelper:
             self.plot_barchart(index)
         elif self.selected_chart == "line":
             self.plot_linechart(index)
+        else:
+            raise(Exception("Unkown graph"))
 
     def plot_linechart(self, index):
         # Ensure 'Timestamp' column is of type datetime
@@ -89,11 +95,35 @@ class LogHelper:
             st.markdown(f"**File:** *{self.selected_log_files[index]}*")
             st.write(filtered_df.to_html(escape=False), unsafe_allow_html=True)
 
+    def show_datetime_filtered_dataframe(self, index):
+        # Ensure 'Timestamp' column is of type datetime
+        self.dfs[index]['Timestamp'] = pd.to_datetime(self.dfs[index]['Timestamp'], format="%d-%m-%Y %H:%M:%S.%f")
+        # Set 'Timestamp' as the index in a copy of the DataFrame
+        df_copy = self.dfs[index].set_index('Timestamp').copy()
+
+        # Filter by date and time
+        if self.start_date and self.start_time:
+            start_datetime = pd.to_datetime(f"{self.start_date} {self.start_time}")
+            df_copy = df_copy[df_copy.index >= start_datetime]
+
+        if self.end_date and self.end_time:
+            end_datetime = pd.to_datetime(f"{self.end_date} {self.end_time}")
+            df_copy = df_copy[df_copy.index <= end_datetime]
+
+        # Display the filtered DataFrame
+        with self.placeholders[index].container():
+            st.markdown(f"**File:** *{self.selected_log_files[index]}*")
+            st.dataframe(df_copy)
+
     def show_filtered_dataframe(self, index):
         if self.selected_filter == "none":
             self.show_dataframe(index)
         elif self.selected_filter == "numeric":
             self.show_numeric_filtered_dataframe(index)
+        elif self.selected_filter == "datetime":
+            self.show_datetime_filtered_dataframe(index)
+        else:
+            raise(Exception("Unkown filter"))
         
     def update_dataframe(self, log_entry, index):
         # Parse the log entry and update the DataFrame accordingly
