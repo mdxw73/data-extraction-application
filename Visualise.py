@@ -7,9 +7,9 @@ log_directory = '.'  # Replace with your log directory
 log_files = glob(os.path.join(log_directory, 'qrt_data_extraction_analysis_*.log')) # Get a list of log files in the directory
 # most_recent_log = max(log_files, key=os.path.getctime) # Find the most recent log file based on the timestamp in the filename
 
-st.markdown(f"### Visualise Log Files")
+st.subheader("Visualise Log Files")
 selected_log_files = st.multiselect("Select log files", log_files)
-selected_chart = st.radio("Select a chart:", ["bar", "line"])
+selected_chart = st.radio("Select a chart:", ["bar", "line", "multi"])
 log_helper = LogHelper(selected_log_files, selected_chart)
 live_track_button = st.empty()
 
