@@ -8,6 +8,7 @@ import re
 import threading
 from queue import Queue
 from bs4 import BeautifulSoup
+from datetime import timedelta
 
 class LogHelper:
     def __init__(self, selected_log_files, selected_chart="bar", selected_filter="none", start_date=None, start_time=None, end_date=None, end_time=None, selected_highlighting = "no", regex_pattern = ""):
@@ -31,6 +32,10 @@ class LogHelper:
         self.columns = ['Timestamp', 'Log Level', 'Message']
         self.dfs = []
         self.placeholders = []
+
+        self.alerts_placeholder = None
+        self.alerts = []
+        self.lock = threading.Lock()
 
     def plot_graph(self, index):
         if self.selected_chart == "bar":
@@ -168,6 +173,21 @@ class LogHelper:
             timestamp = match.group('timestamp')
             log_level = match.group('log_level')
             message = match.group('message')
+
+            if log_level == "WARN":
+                self.lock.acquire()
+                self.alerts.append(f"{log_level}: {message}")
+                if len(self.alerts) > 20:
+                    self.alerts.pop(0)
+                self.lock.release()
+            if len(self.dfs[index]) > 0:
+                latency = pd.to_datetime(timestamp) - pd.to_datetime(self.dfs[index]["Timestamp"].iloc[-1])
+                if latency > timedelta(seconds=2):
+                    self.lock.acquire()
+                    self.alerts.append(f"LATENCY: latency exceeded threshold ({latency.total_seconds()})")
+                    if len(self.alerts) > 20:
+                        self.alerts.pop(0)
+                    self.lock.release()
             
             # Update the DataFrame
             self.dfs[index].loc[len(self.dfs[index])] = [timestamp, log_level, message]
@@ -202,6 +222,10 @@ class LogHelper:
             threads.append(thread)
             thread.start()
 
+        st.subheader("Warnings")
+        st.write("Most recent:")
+        self.alerts_placeholder = st.empty()
+        
         try:
             print("Live track started")
             while self.is_live:
@@ -210,6 +234,12 @@ class LogHelper:
                     print('Executing update {} on main thread'.format(next_task))
                     closure(next_task)
                 else:
+                    if self.alerts:
+                        with self.alerts_placeholder.container():
+                            self.lock.acquire()
+                            for alert in reversed(self.alerts):
+                                st.warning(alert)
+                            self.lock.release()
                     time.sleep(1)
         except KeyboardInterrupt:
             pass
