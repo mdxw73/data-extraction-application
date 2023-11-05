@@ -38,6 +38,9 @@ class LogHelper:
         self.alerts = []
         self.lock = threading.Lock()
 
+        self.statistics = pd.DataFrame(columns=["Exchange", "Order", "recv_nu", "us"])
+        self.statistics_placeholder = None
+
     def plot_graph(self, index):
         if self.selected_chart == "bar":
             self.plot_barchart(index)
@@ -196,6 +199,21 @@ class LogHelper:
             # Update the DataFrame
             self.dfs[index].loc[len(self.dfs[index])] = [timestamp, log_level, message]
 
+    def update_statistics(self, log_entry):
+        ["Exchange", "Order", "recv", "nu", "(us)"]
+        # Parse the log entry and update the DataFrame accordingly
+        pattern = re.compile(r'\s*(?P<exchange>\w+)\s+(?P<order>\w+)\s+(?P<recv_nu>\d+)\s+(?P<us>\d+)\s*')
+        match = pattern.match(log_entry)
+
+        if match:
+            exchange = match.group('exchange')
+            order = match.group('order')
+            recv_nu = match.group('recv_nu')
+            us = match.group('us')
+            
+            # Update the DataFrame
+            self.statistics.loc[len(self.statistics)] = [exchange, order, recv_nu, us]
+
     def run_thread(self, index, log_file, stop_event):
         try:
             with open(log_file) as file:
@@ -206,8 +224,13 @@ class LogHelper:
                         time.sleep(1)
                         file.seek(where)
                     else:
-                        for line in lines:
-                            self.update_dataframe(line, index)
+                        for i in range(len(lines)):
+                            if lines[i] == "Exchange order message timing output\n":
+                                self.statistics = pd.DataFrame(columns=["Exchange", "Order", "recv_nu", "us"])
+                                while lines[i] != "\n":
+                                    i += 1 # skip first empty line
+                                    self.update_statistics(lines[i])
+                            self.update_dataframe(lines[i], index)
                         if index not in self.tasks.queue:
                             self.tasks.put(index)
         except KeyboardInterrupt:
@@ -226,7 +249,11 @@ class LogHelper:
             threads.append(thread)
             thread.start()
 
-        st.subheader("Warnings")
+        st.subheader("Statistics")
+        st.write("Most recent:")
+        self.statistics_placeholder = st.empty()
+
+        st.subheader("Alerts")
         st.write("Most recent:")
         self.alerts_placeholder = st.empty()
         
@@ -238,6 +265,14 @@ class LogHelper:
                     print('Executing update {} on main thread'.format(next_task))
                     closure(next_task)
                 else:
+                    if len(self.statistics):
+                        statistics = self.statistics.copy()
+                        statistics.columns = ['Exchange', 'Order', 'Messages', 'Latency']
+                        with self.statistics_placeholder.container():
+                            col1, col2 = st.columns(2)
+                            col1.bar_chart(statistics, x='Order', y='Messages', color='Exchange')
+                            col2.bar_chart(statistics, x='Order', y='Latency', color='Exchange')
+                            st.dataframe(self.statistics.set_index(['Exchange', 'Order']), use_container_width=True)
                     if self.alerts:
                         with self.alerts_placeholder.container():
                             self.lock.acquire()

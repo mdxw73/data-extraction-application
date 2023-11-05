@@ -1,3 +1,5 @@
+# run with: streamlit run Visualise.py
+
 import streamlit as st
 from glob import glob
 import os
