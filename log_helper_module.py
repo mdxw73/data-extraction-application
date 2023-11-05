@@ -64,10 +64,8 @@ class LogHelper:
     def contains_numeric_data(self, text):
         # Regular expression pattern to match numeric digits or common number words
         pattern = r'\d+|zero|one|two|three|four|five|six|seven|eight|nine'
-        
         # Find all matches in the text
         matches = re.findall(pattern, text)
-        
         # Return True if any matches are found, indicating the presence of numeric data
         return bool(matches)
 
@@ -84,17 +82,14 @@ class LogHelper:
 
     def show_numeric_filtered_dataframe(self, index):
         pattern = r'\d+|zero|one|two|three|four|five|six|seven|eight|nine'
-        filtered_df = self.filter_df_numeric(self.dfs[index])
-
+        filtered_df = self.filter_df_numeric(self.dfs[index].copy())
         for rowindex, row in filtered_df.iterrows():
             filtered_df.at[rowindex, 'Message'] = self.highlight_text_with_regex(row['Message'], pattern)
-
         with self.placeholders[index].container():
             st.markdown(f"**File:** *{self.selected_log_files[index]}*")
             st.write(filtered_df.to_html(escape=False), unsafe_allow_html=True)
 
     def show_filtered_dataframe(self, index):
-        print(self.selected_filter)
         if self.selected_filter == "none":
             self.show_dataframe(index)
         elif self.selected_filter == "numeric":
